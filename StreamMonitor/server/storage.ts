@@ -1,23 +1,42 @@
-import { eq } from 'drizzle-orm';
-import { db } from './db';
-import { usersTable, streamersTable, botSettingsTable, activitiesTable } from './schema';
+// server/storage.ts
+import { db } from "./db.js";
+import { users, streamers, botSettings, activities } from "../shared/schema.js";
+import { eq } from "drizzle-orm";
 
 export const storage = {
   users: {
-    getById: async (id: string) => db.select().from(usersTable).where(eq(usersTable.id, id)).get(),
-    create: async (data: { username: string; password: string }) => db.insert(usersTable).values(data).returning().get(),
+    getById: async (id: string) => {
+      return await db.select().from(users).where(eq(users.id, id)).get();
+    },
+    create: async (data: { username: string; password: string }) => {
+      return await db.insert(users).values(data).get();
+    },
   },
   streamers: {
-    getAll: async () => db.select().from(streamersTable).all(),
-    getByDiscordId: async (discordUserId: string) => db.select().from(streamersTable).where(eq(streamersTable.discordUserId, discordUserId)).get(),
-    create: async (data: any) => db.insert(streamersTable).values(data).returning().get(),
-    update: async (discordUserId: string, data: any) => db.update(streamersTable).set(data).where(eq(streamersTable.discordUserId, discordUserId)).returning().get(),
+    getAll: async () => {
+      return await db.select().from(streamers).all();
+    },
+    getByDiscordId: async (discordUserId: string) => {
+      return await db.select().from(streamers).where(eq(streamers.discordUserId, discordUserId)).get();
+    },
+    create: async (data: any) => {
+      return await db.insert(streamers).values(data).get();
+    },
+    update: async (discordUserId: string, data: any) => {
+      return await db.update(streamers).set(data).where(eq(streamers.discordUserId, discordUserId)).get();
+    },
   },
   botSettings: {
-    get: async () => db.select().from(botSettingsTable).get(),
-    update: async (id: string, data: any) => db.update(botSettingsTable).set(data).where(eq(botSettingsTable.id, id)).returning().get(),
+    get: async () => {
+      return await db.select().from(botSettings).get();
+    },
+    update: async (data: any) => {
+      return await db.update(botSettings).set(data).get();
+    },
   },
   activities: {
-    create: async (data: any) => db.insert(activitiesTable).values(data).returning().get(),
+    create: async (data: any) => {
+      return await db.insert(activities).values(data).get();
+    },
   },
 };
