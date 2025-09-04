@@ -1,18 +1,17 @@
 {
   "compilerOptions": {
-    "outDir": "../dist",
-    "rootDir": "../",
-    "module": "ESNext",
     "target": "ES2022",
-    "moduleResolution": "nodenext",
-    "esModuleInterop": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "../dist/server",
+    "rootDir": ".",
     "strict": true,
-    "allowJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "baseUrl": "../",
-    "paths": {
-      "@shared/*": ["shared/*"]
-    }
+    "resolveJsonModule": true,
+    "allowJs": true
   },
-  "include": ["server/**/*", "shared/**/*"]
+  "include": ["**/*.ts"],
+  "exclude": ["../dist", "node_modules"]
 }
