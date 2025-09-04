@@ -1,51 +1,38 @@
-// server/index.ts
-import express from 'express';
-import session from 'express-session';
-import MemoryStoreImport from 'memorystore';
-import passport from 'passport';
-import { Strategy as LocalStrategy } from 'passport-local';
-import { DiscordBot } from './services/discord-bot.js';
-import { router } from './routes.js';
+// server/routes.ts
+import { Router } from "express";
+import { storage } from "./storage.js";
+import { DiscordBot } from "./services/discord-bot.js";
 
-const MemoryStore = MemoryStoreImport(session);
+export const router = Router();
 
-const app = express();
-app.use(express.json());
+// Test endpoint
+router.get("/", (_req, res) => {
+  res.json({ status: "ok" });
+});
 
-// --- Session setup ---
-app.use(
-  session({
-    cookie: { maxAge: 86400000 },
-    store: new MemoryStore({ checkPeriod: 86400000 }),
-    secret: process.env.SESSION_SECRET || 'supersecret',
-    resave: false,
-    saveUninitialized: true
-  })
-);
+// Bot status
+router.get("/status", async (_req, res) => {
+  const botSettings = await storage.getBotSettings();
+  res.json({ isActive: botSettings?.isActive ?? false });
+});
 
-// --- Passport setup ---
-app.use(passport.initialize());
-app.use(passport.session());
+// Update bot settings
+router.post("/update-settings", async (req, res) => {
+  const newSettings = req.body;
+  await storage.updateBotSettings(newSettings);
+  // DiscordBot singleton haetaan index.ts:stä (ei tuoda tänne)
+  res.json({ success: true });
+});
 
-passport.use(
-  new LocalStrategy((username, password, done) => {
-    if (username === 'admin' && password === 'admin') return done(null, { id: 1, username });
-    return done(null, false);
-  })
-);
+// Get all streamers
+router.get("/streamers", async (_req, res) => {
+  const allStreamers = await storage.getAllStreamers();
+  res.json(allStreamers);
+});
 
-passport.serializeUser((user: any, done) => done(null, user.id));
-passport.deserializeUser((id: number, done) => done(null, { id, username: 'admin' }));
-
-// --- Routes ---
-app.use('/api', router);
-
-app.get('/', (_req, res) => res.send('RSRP Bot Backend Running'));
-
-// --- Start Express server ---
-const PORT = Number(process.env.PORT) || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-// --- Discord bot ---
-const discordBot = new DiscordBot();
-discordBot.initialize().catch(err => console.error('Discord bot failed to initialize:', err));
+// Get one streamer
+router.get("/streamers/:discordUserId", async (req, res) => {
+  const streamer = await storage.getStreamer(req.params.discordUserId);
+  if (!streamer) return res.status(404).json({ error: "Streamer not found" });
+  res.json(streamer);
+});
