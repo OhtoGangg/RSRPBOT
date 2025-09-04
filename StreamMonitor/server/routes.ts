@@ -1,33 +1,20 @@
 // server/routes.ts
 import express from "express";
 import { storage } from "./storage.js";
-import { DiscordBot } from "./services/discord-bot.js";
 
-export function setupRoutes(app: express.Express, discordBot: DiscordBot) {
-  app.get("/", (_req, res) => {
-    res.json({ status: "ok" });
-  });
+export const router = express.Router();
 
-  app.get("/status", async (_req, res) => {
-    const botSettings = await storage.getBotSettings();
-    res.json({ isActive: botSettings?.isActive ?? false });
-  });
+router.get("/bot-settings", async (_req, res) => {
+  const settings = await storage.botSettings.get();
+  res.json(settings);
+});
 
-  app.post("/update-settings", async (req, res) => {
-    const newSettings = req.body;
-    await storage.updateBotSettings(newSettings);
-    if (discordBot) await discordBot.updateSettings(newSettings);
-    res.json({ success: true });
-  });
+router.post("/bot-settings", async (req, res) => {
+  const updated = await storage.botSettings.update(req.body);
+  res.json(updated);
+});
 
-  app.get("/streamers", async (_req, res) => {
-    const allStreamers = await storage.getAllStreamers();
-    res.json(allStreamers);
-  });
-
-  app.get("/streamers/:discordUserId", async (req, res) => {
-    const streamer = await storage.getStreamer(req.params.discordUserId);
-    if (!streamer) return res.status(404).json({ error: "Streamer not found" });
-    res.json(streamer);
-  });
-}
+router.get("/streamers", async (_req, res) => {
+  const all = await storage.streamers.getAll();
+  res.json(all);
+});
