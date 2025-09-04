@@ -1,59 +1,23 @@
-import { db } from './db.js';
-import { v4 as uuidv4 } from 'uuid';
-import { users, streamers, bot_settings, activities } from './schema.js';
 import { eq } from 'drizzle-orm';
+import { db } from './db';
+import { usersTable, streamersTable, botSettingsTable, activitiesTable } from './schema';
 
 export const storage = {
-  // Users
-  getUser: async (id: string) => {
-    const result = await db.select().from(users).where(eq(users.id, id)).execute();
-    return result[0] ?? null;
+  users: {
+    getById: async (id: string) => db.select().from(usersTable).where(eq(usersTable.id, id)).get(),
+    create: async (data: { username: string; password: string }) => db.insert(usersTable).values(data).returning().get(),
   },
-
-  createUser: async (username: string, password: string) => {
-    const id = uuidv4();
-    await db.insert(users).values({ id, username, password }).execute();
-    return { id, username };
+  streamers: {
+    getAll: async () => db.select().from(streamersTable).all(),
+    getByDiscordId: async (discordUserId: string) => db.select().from(streamersTable).where(eq(streamersTable.discordUserId, discordUserId)).get(),
+    create: async (data: any) => db.insert(streamersTable).values(data).returning().get(),
+    update: async (discordUserId: string, data: any) => db.update(streamersTable).set(data).where(eq(streamersTable.discordUserId, discordUserId)).returning().get(),
   },
-
-  // Streamers
-  getStreamer: async (discordUserId: string) => {
-    const result = await db.select().from(streamers).where(eq(streamers.discordUserId, discordUserId)).execute();
-    return result[0] ?? null;
+  botSettings: {
+    get: async () => db.select().from(botSettingsTable).get(),
+    update: async (id: string, data: any) => db.update(botSettingsTable).set(data).where(eq(botSettingsTable.id, id)).returning().get(),
   },
-
-  getAllStreamers: async () => {
-    return await db.select().from(streamers).execute();
-  },
-
-  createStreamer: async (data: any) => {
-    const id = uuidv4();
-    const newStreamer = { ...data, id, lastChecked: new Date() };
-    await db.insert(streamers).values(newStreamer).execute();
-    return newStreamer;
-  },
-
-  updateStreamer: async (discordUserId: string, data: Partial<any>) => {
-    await db.update(streamers).set({ ...data, lastChecked: new Date() }).where(eq(streamers.discordUserId, discordUserId)).execute();
-    return await storage.getStreamer(discordUserId);
-  },
-
-  // Bot settings
-  getBotSettings: async () => {
-    const result = await db.select().from(bot_settings).execute();
-    return result[0] ?? null;
-  },
-
-  updateBotSettings: async (data: Partial<any>) => {
-    await db.update(bot_settings).set(data).execute();
-    return await storage.getBotSettings();
-  },
-
-  // Activities
-  createActivity: async (data: any) => {
-    const id = uuidv4();
-    const newActivity = { ...data, id, timestamp: new Date() };
-    await db.insert(activities).values(newActivity).execute();
-    return newActivity;
+  activities: {
+    create: async (data: any) => db.insert(activitiesTable).values(data).returning().get(),
   },
 };
