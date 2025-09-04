@@ -1,15 +1,10 @@
-import { type Router, type Request, type Response } from "express";
-import { IStorage } from "./storage";
+import express, { type Request, type Response, type Router } from "express";
+import { storage } from "./storage.js";
 
-export async function registerRoutes(app: Router, storage: IStorage) {
-  const router = Router();
+export async function registerRoutes(app: express.Express, _storage = storage): Promise<express.Express> {
+  const router: Router = express.Router();
 
-  // Test endpoint
-  router.get("/api/ping", async (_req: Request, res: Response) => {
-    res.json({ message: "pong" });
-  });
-
-  // Users
+  // ========== USER ROUTES ==========
   router.get("/api/users/:id", async (req: Request, res: Response) => {
     const user = await storage.getUser(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -18,18 +13,14 @@ export async function registerRoutes(app: Router, storage: IStorage) {
 
   router.post("/api/users", async (req: Request, res: Response) => {
     const { username, password } = req.body;
-    if (!username || !password)
-      return res.status(400).json({ message: "Missing username or password" });
-
+    if (!username || !password) return res.status(400).json({ message: "Missing username or password" });
     const existing = await storage.getUserByUsername(username);
-    if (existing)
-      return res.status(400).json({ message: "Username already exists" });
-
+    if (existing) return res.status(409).json({ message: "User already exists" });
     const user = await storage.createUser({ username, password });
     res.json(user);
   });
 
-  // Streamers
+  // ========== STREAMER ROUTES ==========
   router.get("/api/streamers", async (_req: Request, res: Response) => {
     const streamers = await storage.getAllStreamers();
     res.json(streamers);
@@ -43,14 +34,12 @@ export async function registerRoutes(app: Router, storage: IStorage) {
 
   router.post("/api/streamers", async (req: Request, res: Response) => {
     const { discordUserId, discordUsername, twitchUsername } = req.body;
-    if (!discordUserId || !discordUsername)
-      return res.status(400).json({ message: "Missing Discord info" });
-
+    if (!discordUserId || !discordUsername) return res.status(400).json({ message: "Missing required fields" });
     const streamer = await storage.createStreamer({ discordUserId, discordUsername, twitchUsername });
     res.json(streamer);
   });
 
-  router.put("/api/streamers/:discordUserId", async (req: Request, res: Response) => {
+  router.patch("/api/streamers/:discordUserId", async (req: Request, res: Response) => {
     const updates = req.body;
     const updated = await storage.updateStreamer(req.params.discordUserId, updates);
     if (!updated) return res.status(404).json({ message: "Streamer not found" });
@@ -58,24 +47,24 @@ export async function registerRoutes(app: Router, storage: IStorage) {
   });
 
   router.delete("/api/streamers/:discordUserId", async (req: Request, res: Response) => {
-    const deleted = await storage.deleteStreamer(req.params.discordUserId);
-    if (!deleted) return res.status(404).json({ message: "Streamer not found" });
-    res.json({ success: true });
+    const success = await storage.deleteStreamer(req.params.discordUserId);
+    if (!success) return res.status(404).json({ message: "Streamer not found" });
+    res.json({ message: "Deleted successfully" });
   });
 
-  // Bot settings
+  // ========== BOT SETTINGS ROUTES ==========
   router.get("/api/bot-settings", async (_req: Request, res: Response) => {
     const settings = await storage.getBotSettings();
-    if (!settings) return res.status(404).json({ message: "Bot settings not found" });
     res.json(settings);
   });
 
-  router.put("/api/bot-settings", async (req: Request, res: Response) => {
-    const updated = await storage.updateBotSettings(req.body);
+  router.patch("/api/bot-settings", async (req: Request, res: Response) => {
+    const updates = req.body;
+    const updated = await storage.updateBotSettings(updates);
     res.json(updated);
   });
 
-  // Activities
+  // ========== ACTIVITY ROUTES ==========
   router.get("/api/activities", async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 50;
     const activities = await storage.getRecentActivities(limit);
@@ -83,18 +72,18 @@ export async function registerRoutes(app: Router, storage: IStorage) {
   });
 
   router.post("/api/activities", async (req: Request, res: Response) => {
-    const activity = await storage.createActivity(req.body);
+    const { type, message, userId } = req.body;
+    if (!type || !message || !userId) return res.status(400).json({ message: "Missing required fields" });
+    const activity = await storage.createActivity({ type, message, userId });
     res.json(activity);
   });
 
-  // Dashboard stats
+  // ========== DASHBOARD STATS ==========
   router.get("/api/stats", async (_req: Request, res: Response) => {
-    const stats = {
-      activeStreams: await storage.getActiveStreamsCount(),
-      totalStreamers: await storage.getTotalStreamersCount(),
-      todayAnnouncements: await storage.getTodayAnnouncementsCount(),
-    };
-    res.json(stats);
+    const activeStreams = await storage.getActiveStreamsCount();
+    const totalStreamers = await storage.getTotalStreamersCount();
+    const todayAnnouncements = await storage.getTodayAnnouncementsCount();
+    res.json({ activeStreams, totalStreamers, todayAnnouncements });
   });
 
   app.use(router);
