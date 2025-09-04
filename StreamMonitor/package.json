@@ -2,10 +2,10 @@
   "name": "rest-express",
   "version": "1.0.0",
   "type": "module",
-"scripts": {
-  "dev": "NODE_ENV=development tsx server/index.ts",
-  "build": "echo 'No build needed when using tsx directly'",
-  "start": "NODE_ENV=production tsx server/index.ts"
+  "scripts": {
+    "dev": "NODE_ENV=development tsx server/index.ts",
+    "build": "tsc",
+    "start": "NODE_ENV=production node server/index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -13,18 +13,19 @@
     "discord.js": "^14.15.0",
     "uuid": "^9.0.0",
     "node-fetch": "^3.4.0",
-    "@neondatabase/serverless": "1.2.0",
+    "@neondatabase/serverless": "^1.0.1",
     "drizzle-orm": "^0.29.0",
+    "neon-serverless": "^1.2.0"
   },
   "devDependencies": {
     "tsx": "^3.12.7",
-    "@types/node": "^20.16.11",
+    "@types/node": "^20.7.3",
     "typescript": "^5.2.2",
     "tsconfig-paths": "^4.2.0",
     "@vitejs/plugin-react": "^4.3.2",
     "@replit/vite-plugin-cartographer": "^0.3.0",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
-    "@types/express": "4.17.21",
+    "@types/express": "^4.17.21",
     "@types/express-session": "^1.18.0",
     "@types/passport": "^1.0.16",
     "@types/passport-local": "^1.0.38",
