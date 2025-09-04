@@ -1,93 +1,79 @@
 // server/storage.ts
-import fs from 'fs';
-import path from 'path';
-
-const STORAGE_FILE = path.resolve('./data.json');
-
-interface Streamer {
-  id: string;
-  discordUserId: string;
-  discordUsername: string;
-  twitchUsername: string | null;
-  isLive: boolean | null;
-  currentStreamTitle: string | null;
-  currentViewers: number | null;
-  lastChecked: Date | null;
-  announcementMessageId: string | null;
-}
-
-interface BotSettings {
-  isActive: boolean;
-  watchedRoleId: string;
-  liveRoleId: string;
-  announceChannelId: string;
-  checkIntervalSeconds: number;
-}
-
-interface Activity {
-  type: string;
-  streamerDiscordId: string;
-  streamerUsername: string;
-  description: string;
-  timestamp?: Date;
-}
-
-const defaultData = { botSettings: {}, streamers: [], activities: [] };
+import { db } from './db.js'; // olettaen, että Drizzle ORM setup on db.js:ssä
+import { streamers, botSettings, activities, users } from '../shared/schema.js';
+import { eq } from 'drizzle-orm';
 
 export const storage = {
-  async read() {
-    try {
-      const data = await fs.promises.readFile(STORAGE_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      return parsed;
-    } catch {
-      return { ...defaultData };
-    }
+  // --- Users ---
+  async getUser(username: string) {
+    return db.select().from(users).where(eq(users.username, username)).get();
   },
 
-  async write(data: any) {
-    await fs.promises.writeFile(STORAGE_FILE, JSON.stringify(data, null, 2));
+  async createUser(data: { username: string; password: string }) {
+    return db.insert(users).values(data).returning().get();
   },
 
-  async getBotSettings(): Promise<BotSettings | null> {
-    const data = await this.read();
-    return data.botSettings || null;
+  // --- Streamers ---
+  async getAllStreamers() {
+    return db.select().from(streamers).all();
   },
 
-  async updateBotSettings(settings: Partial<BotSettings>) {
-    const data = await this.read();
-    data.botSettings = { ...data.botSettings, ...settings };
-    await this.write(data);
+  async getStreamer(discordUserId: string) {
+    return db.select().from(streamers).where(eq(streamers.discordUserId, discordUserId)).get();
   },
 
-  async getStreamer(discordUserId: string): Promise<Streamer | null> {
-    const data = await this.read();
-    return data.streamers.find((s: any) => s.discordUserId === discordUserId) || null;
+  async createStreamer(data: {
+    id: string;
+    discordUserId: string;
+    discordUsername: string;
+    twitchUsername: string | null;
+    isLive: boolean;
+    currentStreamTitle: string | null;
+    currentViewers: number;
+    announcementMessageId: string | null;
+    lastChecked: Date;
+  }) {
+    return db.insert(streamers).values(data).returning().get();
   },
 
-  async createStreamer(streamer: Streamer): Promise<Streamer> {
-    const data = await this.read();
-    data.streamers.push(streamer);
-    await this.write(data);
-    return streamer;
+  async updateStreamer(discordUserId: string, data: Partial<{
+    discordUsername: string;
+    twitchUsername: string | null;
+    isLive: boolean;
+    currentStreamTitle: string | null;
+    currentViewers: number;
+    announcementMessageId: string | null;
+    lastChecked: Date;
+  }>) {
+    return db.update(streamers).set(data).where(eq(streamers.discordUserId, discordUserId)).returning().get();
   },
 
-  async updateStreamer(discordUserId: string, updates: Partial<Streamer>) {
-    const data = await this.read();
-    const streamer = data.streamers.find((s: any) => s.discordUserId === discordUserId);
-    if (!streamer) return;
-    Object.assign(streamer, updates);
-    await this.write(data);
+  // --- Bot Settings ---
+  async getBotSettings() {
+    return db.select().from(botSettings).get();
   },
 
-  async createActivity(activity: Activity) {
-    const data = await this.read();
-    data.activities.push({ ...activity, timestamp: new Date() });
-    await this.write(data);
+  async updateBotSettings(data: Partial<{
+    watchedRoleId: string;
+    liveRoleId: string;
+    announceChannelId: string;
+    checkIntervalSeconds: number;
+    isActive: boolean;
+  }>) {
+    return db.update(botSettings).set(data).returning().get();
   },
 
-  async getAllStreamers(): Promise<Streamer[]> {
-    const data = await this.read();
-    return data.streamers;
-  }
+  // --- Activities ---
+  async createActivity(data: {
+    type: string;
+    streamerDiscordId: string;
+    streamerUsername: string;
+    description: string;
+    timestamp?: Date;
+  }) {
+    return db.insert(activities).values({
+      ...data,
+      timestamp: data.timestamp || new Date(),
+    }).returning().get();
+  },
 };
