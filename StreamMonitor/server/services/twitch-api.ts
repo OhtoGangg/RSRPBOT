@@ -1,6 +1,3 @@
-// server/services/twitch-api.ts
-import fetch from "node-fetch"; // jos Node 18+, voit käyttää global fetchia
-
 export interface TwitchStreamData {
   id: string;
   user_id: string;
@@ -33,32 +30,32 @@ export interface TwitchUser {
 export class TwitchAPI {
   private clientId: string;
   private accessToken: string;
-  private baseURL = "https://api.twitch.tv/helix";
+  private baseURL = 'https://api.twitch.tv/helix';
 
   constructor() {
-    this.clientId = process.env.TWITCH_CLIENT_ID || process.env.TWITCH_APP_ID || "";
-    this.accessToken = process.env.TWITCH_ACCESS_TOKEN || process.env.TWITCH_TOKEN || "";
+    this.clientId = process.env.TWITCH_CLIENT_ID || process.env.TWITCH_APP_ID || '';
+    this.accessToken = process.env.TWITCH_ACCESS_TOKEN || process.env.TWITCH_TOKEN || '';
 
     if (!this.clientId || !this.accessToken) {
-      console.error("Missing Twitch API credentials. Set TWITCH_CLIENT_ID and TWITCH_ACCESS_TOKEN");
+      console.error('Missing Twitch API credentials. Set TWITCH_CLIENT_ID and TWITCH_ACCESS_TOKEN');
     }
   }
 
   private async makeRequest(endpoint: string): Promise<any> {
     if (!this.clientId || !this.accessToken) {
-      throw new Error("Twitch API credentials not configured");
+      throw new Error('Twitch API credentials not configured');
     }
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       headers: {
-        "Client-ID": this.clientId,
-        "Authorization": `Bearer ${this.accessToken}`,
+        'Client-ID': this.clientId,
+        'Authorization': `Bearer ${this.accessToken}`,
       },
     });
 
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error("Twitch API authentication failed - check access token");
+        throw new Error('Twitch API authentication failed - check access token');
       }
       throw new Error(`Twitch API error: ${response.status} ${response.statusText}`);
     }
@@ -66,36 +63,36 @@ export class TwitchAPI {
     return response.json();
   }
 
-  public async getUser(username: string): Promise<TwitchUser | null> {
+  async getUser(username: string): Promise<TwitchUser | null> {
     try {
       const data = await this.makeRequest(`/users?login=${encodeURIComponent(username)}`);
       return data.data?.[0] || null;
-    } catch (error: any) {
-      console.error(`Error fetching Twitch user ${username}:`, error.message || error);
+    } catch (error) {
+      console.error(`Error fetching Twitch user ${username}:`, error);
       return null;
     }
   }
 
-  public async getStreamData(username: string): Promise<TwitchStreamData | null> {
+  async getStreamData(username: string): Promise<TwitchStreamData | null> {
     try {
       const data = await this.makeRequest(`/streams?user_login=${encodeURIComponent(username)}`);
       return data.data?.[0] || null;
-    } catch (error: any) {
-      console.error(`Error fetching stream data for ${username}:`, error.message || error);
+    } catch (error) {
+      console.error(`Error fetching stream data for ${username}:`, error);
       return null;
     }
   }
 
-  public async validateToken(): Promise<boolean> {
+  async validateToken(): Promise<boolean> {
     try {
-      const response = await fetch("https://id.twitch.tv/oauth2/validate", {
+      const response = await fetch('https://id.twitch.tv/oauth2/validate', {
         headers: {
-          "Authorization": `Bearer ${this.accessToken}`,
+          'Authorization': `Bearer ${this.accessToken}`,
         },
       });
       return response.ok;
-    } catch (error: any) {
-      console.error("Error validating Twitch token:", error.message || error);
+    } catch (error) {
+      console.error('Error validating Twitch token:', error);
       return false;
     }
   }
