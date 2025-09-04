@@ -1,42 +1,66 @@
-export interface Streamer {
-  discordUserId: string;
-  discordUsername: string;
-  twitchUsername: string | null;
-  isLive: boolean;
-  currentStreamTitle: string | null;
-  currentViewers: number;
-  announcementMessageId: string | null;
-}
+// server/storage.ts
+import { randomUUID } from 'crypto';
+import { type InsertBotSettings, type BotSettings, type InsertActivity, type Activity, type InsertStreamer, type Streamer } from '../shared/schema.js';
 
-interface BotSettings {
-  watchedRoleId: string;
-  liveRoleId: string;
-  announceChannelId: string;
-  checkIntervalSeconds: number;
-  isActive: boolean;
-}
-
-class MemStorage {
+export class MemStorage {
   private streamers: Map<string, Streamer> = new Map();
-  private botSettings: BotSettings = {
-    watchedRoleId: 'STRIIMAAJA_ROLE_ID',
-    liveRoleId: 'LIVESSÄ_ROLE_ID',
-    announceChannelId: 'MAINOSTUS_CHANNEL_ID',
-    checkIntervalSeconds: 60,
-    isActive: true,
-  };
+  private botSettings: BotSettings | undefined;
+  private activities: Activity[] = [];
 
-  async getBotSettings() { return this.botSettings; }
-  async updateBotSettings(settings: Partial<BotSettings>) {
-    this.botSettings = { ...this.botSettings, ...settings };
+  constructor() {
+    this.botSettings = {
+      id: randomUUID(),
+      watchedRoleId: process.env.WATCHED_ROLE_ID || 'STRIIMAAJA_ROLE_ID',
+      liveRoleId: process.env.LIVE_ROLE_ID || 'LIVESSÄ_ROLE_ID',
+      announceChannelId: process.env.ANNOUNCE_CHANNEL_ID || 'MAINOSTUS_CHANNEL_ID',
+      checkIntervalSeconds: 60,
+      isActive: true,
+    };
   }
 
-  async getStreamer(discordUserId: string) { return this.streamers.get(discordUserId) || null; }
-  async createStreamer(streamer: Streamer) { this.streamers.set(streamer.discordUserId, streamer); return streamer; }
-  async updateStreamer(discordUserId: string, updates: Partial<Streamer>) {
+  // Bot settings
+  async getBotSettings(): Promise<BotSettings> {
+    return this.botSettings!;
+  }
+
+  async updateBotSettings(settings: InsertBotSettings): Promise<BotSettings> {
+    this.botSettings = { ...this.botSettings!, ...settings };
+    return this.botSettings;
+  }
+
+  // Streamers
+  async getStreamer(discordUserId: string): Promise<Streamer | undefined> {
+    return this.streamers.get(discordUserId);
+  }
+
+  async createStreamer(streamer: InsertStreamer): Promise<Streamer> {
+    const newStreamer: Streamer = {
+      ...streamer,
+      id: randomUUID(),
+      isLive: streamer.isLive ?? false,
+      currentViewers: streamer.currentViewers ?? 0,
+      currentStreamTitle: streamer.currentStreamTitle ?? null,
+      announcementMessageId: streamer.announcementMessageId ?? null,
+      lastChecked: new Date(),
+    };
+    this.streamers.set(streamer.discordUserId, newStreamer);
+    return newStreamer;
+  }
+
+  async updateStreamer(discordUserId: string, updates: Partial<Omit<Streamer, 'id' | 'discordUserId'>>): Promise<Streamer | undefined> {
     const existing = this.streamers.get(discordUserId);
-    if (!existing) return;
-    this.streamers.set(discordUserId, { ...existing, ...updates });
+    if (!existing) return undefined;
+    const updated = { ...existing, ...updates, lastChecked: new Date() };
+    this.streamers.set(discordUserId, updated);
+    return updated;
+  }
+
+  // Activities
+  async createActivity(activity: InsertActivity): Promise<Activity> {
+    const newActivity: Activity = { ...activity, id: randomUUID(), timestamp: new Date() };
+    this.activities.push(newActivity);
+    if (this.activities.length > 1000) this.activities = this.activities.slice(-1000);
+    return newActivity;
   }
 }
 
