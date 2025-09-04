@@ -1,10 +1,5 @@
 import { randomUUID } from "crypto";
-import type { 
-  User, InsertUser, 
-  Streamer, InsertStreamer, 
-  BotSettings, InsertBotSettings, 
-  Activity, InsertActivity 
-} from "@shared/schema";
+import type { User, InsertUser, Streamer, InsertStreamer, BotSettings, InsertBotSettings, Activity, InsertActivity } from "../shared/schema.js";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -31,7 +26,7 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private users = new Map<string, User>();
   private streamers = new Map<string, Streamer>();
-  private botSettings?: BotSettings;
+  private botSettings: BotSettings | undefined;
   private activities: Activity[] = [];
 
   constructor() {
@@ -51,32 +46,32 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(u => u.username === username);
   }
 
-  async createUser(user: InsertUser) {
+  async createUser(insertUser: InsertUser) {
     const id = randomUUID();
-    const newUser: User = { ...user, id };
-    this.users.set(id, newUser);
-    return newUser;
+    const user: User = { ...insertUser, id };
+    this.users.set(id, user);
+    return user;
   }
 
   async getAllStreamers() { return Array.from(this.streamers.values()); }
 
   async getStreamer(discordUserId: string) { return this.streamers.get(discordUserId); }
 
-  async createStreamer(streamer: InsertStreamer) {
+  async createStreamer(insertStreamer: InsertStreamer) {
     const id = randomUUID();
-    const newStreamer: Streamer = {
+    const streamer: Streamer = {
       id,
-      discordUserId: streamer.discordUserId,
-      discordUsername: streamer.discordUsername,
-      twitchUsername: streamer.twitchUsername ?? null,
-      isLive: streamer.isLive ?? false,
-      currentStreamTitle: streamer.currentStreamTitle ?? null,
-      currentViewers: streamer.currentViewers ?? 0,
-      announcementMessageId: streamer.announcementMessageId ?? null,
+      discordUserId: insertStreamer.discordUserId,
+      discordUsername: insertStreamer.discordUsername,
+      twitchUsername: insertStreamer.twitchUsername ?? null,
+      isLive: insertStreamer.isLive ?? false,
+      currentStreamTitle: insertStreamer.currentStreamTitle ?? null,
+      currentViewers: insertStreamer.currentViewers ?? 0,
+      announcementMessageId: insertStreamer.announcementMessageId ?? null,
       lastChecked: new Date(),
     };
-    this.streamers.set(streamer.discordUserId, newStreamer);
-    return newStreamer;
+    this.streamers.set(insertStreamer.discordUserId, streamer);
+    return streamer;
   }
 
   async updateStreamer(discordUserId: string, updates: Partial<Omit<Streamer, 'id' | 'discordUserId'>>) {
@@ -92,40 +87,27 @@ export class MemStorage implements IStorage {
   async getBotSettings() { return this.botSettings; }
 
   async updateBotSettings(settings: InsertBotSettings) {
-    this.botSettings = {
-      id: this.botSettings?.id ?? randomUUID(),
-      watchedRoleId: settings.watchedRoleId,
-      liveRoleId: settings.liveRoleId,
-      announceChannelId: settings.announceChannelId,
-      checkIntervalSeconds: settings.checkIntervalSeconds ?? 60,
-      isActive: settings.isActive ?? true,
-    };
+    this.botSettings = { id: this.botSettings?.id || randomUUID(), ...settings };
     return this.botSettings;
   }
 
   async getRecentActivities(limit = 50) {
-    return this.activities
-      .sort((a, b) => (b.timestamp?.getTime() ?? 0) - (a.timestamp?.getTime() ?? 0))
-      .slice(0, limit);
+    return this.activities.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0)).slice(0, limit);
   }
 
-  async createActivity(activity: InsertActivity) {
-    const id = randomUUID();
-    const newActivity: Activity = { ...activity, id, timestamp: new Date() };
-    this.activities.push(newActivity);
+  async createActivity(insertActivity: InsertActivity) {
+    const activity: Activity = { ...insertActivity, id: randomUUID(), timestamp: new Date() };
+    this.activities.push(activity);
     if (this.activities.length > 1000) this.activities = this.activities.slice(-1000);
-    return newActivity;
+    return activity;
   }
 
-  async getActiveStreamsCount() {
-    return Array.from(this.streamers.values()).filter(s => s.isLive).length;
-  }
+  async getActiveStreamsCount() { return Array.from(this.streamers.values()).filter(s => s.isLive).length; }
 
   async getTotalStreamersCount() { return this.streamers.size; }
 
   async getTodayAnnouncementsCount() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     return this.activities.filter(a => a.type === 'announcement' && a.timestamp && a.timestamp >= today).length;
   }
 }
