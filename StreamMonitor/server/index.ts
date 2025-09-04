@@ -4,7 +4,7 @@ import MemoryStore from "memorystore";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Client, GatewayIntentBits } from "discord.js";
-import { WebSocketServer } from "ws";
+import ws from "ws";
 
 // --- Express setup ---
 const app = express();
@@ -16,7 +16,7 @@ app.use(
   session({
     cookie: { maxAge: 86400000 },
     store: new MemoryStoreSession({ checkPeriod: 86400000 }),
-    secret: "supersecret",
+    secret: process.env.SESSION_SECRET || "supersecret",
     resave: false,
     saveUninitialized: true
   })
@@ -27,7 +27,6 @@ app.use(passport.session());
 
 passport.use(
   new LocalStrategy((username, password, done) => {
-    // TODO: replace with real authentication
     if (username === "admin" && password === "admin") return done(null, { id: 1, username });
     return done(null, false);
   })
@@ -38,9 +37,8 @@ passport.deserializeUser((id: number, done) => done(null, { id, username: "admin
 
 app.get("/", (req, res) => res.send("RSRP Bot Backend Running"));
 
-// --- Start server with Render-compatible port ---
-const port = process.env.PORT ? parseInt(process.env.PORT) : 10000;
-const server = app.listen(port, () => console.log(`Server running on port ${port}`));
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`Server running on port ${port}`));
 
 // --- Discord bot setup ---
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
@@ -50,13 +48,15 @@ client.on("ready", () => {
 });
 
 if (!process.env.DISCORD_TOKEN) {
-  console.warn("DISCORD_TOKEN not set!");
+  console.error("Please set DISCORD_TOKEN in environment variables");
 } else {
   client.login(process.env.DISCORD_TOKEN);
 }
 
-// --- WebSocket server tied to Express ---
-const wss = new WebSocketServer({ server });
+// --- WebSocket example ---
+const wssPort = Number(process.env.WS_PORT) || 8080;
+const wss = new ws.Server({ port: wssPort });
+
 wss.on("connection", socket => {
   console.log("WebSocket client connected");
   socket.on("message", message => console.log(`Received: ${message}`));
