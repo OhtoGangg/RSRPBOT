@@ -4,7 +4,7 @@ import MemoryStore from "memorystore";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Client, GatewayIntentBits } from "discord.js";
-import ws from "ws";
+import { WebSocketServer } from "ws";
 
 // --- Express setup ---
 const app = express();
@@ -38,7 +38,9 @@ passport.deserializeUser((id: number, done) => done(null, { id, username: "admin
 
 app.get("/", (req, res) => res.send("RSRP Bot Backend Running"));
 
-app.listen(3000, () => console.log("Server running on port 3000"));
+// --- Start server with Render-compatible port ---
+const port = process.env.PORT ? parseInt(process.env.PORT) : 10000;
+const server = app.listen(port, () => console.log(`Server running on port ${port}`));
 
 // --- Discord bot setup ---
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
@@ -47,10 +49,14 @@ client.on("ready", () => {
   console.log(`Logged in as ${client.user?.tag}!`);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+if (!process.env.DISCORD_TOKEN) {
+  console.warn("DISCORD_TOKEN not set!");
+} else {
+  client.login(process.env.DISCORD_TOKEN);
+}
 
-// --- WebSocket example ---
-const wss = new ws.Server({ port: 8080 });
+// --- WebSocket server tied to Express ---
+const wss = new WebSocketServer({ server });
 wss.on("connection", socket => {
   console.log("WebSocket client connected");
   socket.on("message", message => console.log(`Received: ${message}`));
