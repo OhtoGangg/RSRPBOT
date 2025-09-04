@@ -1,8 +1,8 @@
 // server/routes.ts
 import express, { type Request, type Response } from 'express';
-import { storage } from './storage';
-import { DiscordBot } from './services/discord-bot';
-import { type InsertBotSettings } from '@shared/schema';
+import { storage } from './storage.js';
+import { DiscordBot } from './services/discord-bot.js';
+import { type InsertBotSettings } from '@shared/schema.js';
 
 export const router = express.Router();
 
@@ -39,9 +39,7 @@ router.post('/settings', async (req: Request, res: Response) => {
 // --- Get all streamers ---
 router.get('/streamers', async (_req: Request, res: Response) => {
   try {
-    const allStreamers = await Promise.all(
-      Array.from(storage['streamers'].values())
-    );
+    const allStreamers = Array.from(storage['streamers'].values());
     res.json(allStreamers);
   } catch (error) {
     console.error('Error getting streamers:', error);
@@ -62,4 +60,3 @@ router.get('/streamers/:discordUserId', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to get streamer' });
   }
 });
-
