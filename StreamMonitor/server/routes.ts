@@ -1,20 +1,36 @@
-import express from "express";
-import storage from "./storage.js";
-import { bot } from "./services/discord-bot.js";
-import { schema } from "@shared/schema"; // varmistettu tsconfig-pathsilla
+// server/routes.ts
+import express from 'express';
+import { storage } from './storage.js';
+import { DiscordBot } from './services/discord-bot.js';
 
-const router = express.Router();
+export const router = express.Router();
 
-// Esimerkki reitistä
-router.get("/status", (req, res) => {
-  res.json({ status: "ok" });
+// Status endpoint
+router.get('/status', async (_req, res) => {
+  try {
+    const botStatus = {
+      isOnline: true, // TODO: Kysy oikeasti DiscordBotilta tarvittaessa
+      botSettings: await storage.getBotSettings()
+    };
+    res.json(botStatus);
+  } catch (err) {
+    console.error('Error fetching status:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// Lisää muut reitit täällä, tyypit eksplisiittisesti
-router.post("/data", (req, res) => {
-  const s: any = req.body;
-  storage.save(s);
-  res.json({ success: true });
-});
+// Example endpoint to update bot settings
+router.post('/settings', async (req, res) => {
+  try {
+    const newSettings = req.body;
+    await storage.updateBotSettings(newSettings);
 
-export default router;
+    // TODO: Jos haluat, voit herättää DiscordBotin uudelleen käynnistämään monitoringin
+    // discordBot.updateSettings(newSettings);
+
+    res.json({ success: true, updatedSettings: newSettings });
+  } catch (err) {
+    console.error('Error updating settings:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
