@@ -1,16 +1,14 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-"lib": ["esnext"]
-    "module": "commonjs",
+    "target": "ES2022",
+    "module": "ESNext",
     "moduleResolution": "node",
     "outDir": "dist",
-    "rootDir": "server",
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
-"types": ["node"], // include node types
   },
-  "include": ["server/**/*.ts"]
+  "include": ["server/**/*.ts", "shared/**/*.ts"]
 }
