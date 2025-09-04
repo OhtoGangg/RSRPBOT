@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"tsc --project server/tsconfig.server.json --watch\" \"vite\"",
     "build": "tsc --project tsconfig.json && tsconfig-paths -p tsconfig.json -s ./src -o ./dist",
-    "start": "node dist/server/index.js",
+   "start": "ts-node -r tsconfig-paths/register server/index.ts",
     "check": "tsc",
     "db:push": "drizzle-kit push"
   },
