@@ -1,10 +1,20 @@
 // server/routes.ts
-import express, { type Request, type Response } from 'express';
+import express from 'express';
 import { storage } from './storage.js';
 import { DiscordBot } from './services/discord-bot.js';
-import { type InsertBotSettings } from '@shared/schema.js';
 
-export const router = express.Router();
+export function setupRoutes(app: express.Express, discordBot: DiscordBot) {
+  app.get('/status', async (_req, res) => {
+    const botSettings = await storage.getBotSettings();
+    res.json({ isActive: botSettings?.isActive ?? false });
+  });
+
+  app.post('/update-settings', async (req, res) => {
+    const newSettings = req.body;
+    await discordBot.initialize(); // optional re-init
+    res.json({ success: true });
+  });
+}
 
 // --- Bot status ---
 router.get('/status', async (_req: Request, res: Response) => {
