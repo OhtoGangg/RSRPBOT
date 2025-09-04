@@ -1,7 +1,7 @@
-// shared/schema.ts
-import { pgTable, serial, text, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, varchar, boolean, text, timestamp } from "drizzle-orm/pg-core";
+import { InferModel } from "drizzle-orm";
 
-// Tables
+// Define your tables
 export const users = pgTable("users", {
   id: varchar("id").primaryKey(),
   username: varchar("username"),
@@ -12,7 +12,7 @@ export const streamers = pgTable("streamers", {
   id: varchar("id").primaryKey(),
   discordUserId: varchar("discord_user_id"),
   discordUsername: varchar("discord_username"),
-  twitchUsername: varchar("twitch_username").nullable(),
+  twitchUsername: varchar("twitch_username"),
   isLive: boolean("is_live"),
   currentStreamTitle: text("current_stream_title").nullable(),
   currentViewers: text("current_viewers"),
@@ -31,66 +31,8 @@ export const activities = pgTable("activities", {
   timestamp: timestamp("timestamp"),
 });
 
-// TypeScript interfaces for storage
-export interface User {
-  id: string;
-  username: string;
-  password: string;
-}
-
-export interface InsertUser {
-  username: string;
-  password: string;
-}
-
-export interface Streamer {
-  id: string;
-  discordUserId: string;
-  discordUsername: string;
-  twitchUsername: string | null;
-  isLive: boolean;
-  currentStreamTitle: string | null;
-  currentViewers: number;
-  announcementMessageId: string | null;
-  lastChecked: Date;
-}
-
-export interface InsertStreamer {
-  discordUserId: string;
-  discordUsername: string;
-  twitchUsername?: string | null;
-  isLive?: boolean;
-  currentStreamTitle?: string | null;
-  currentViewers?: number;
-  announcementMessageId?: string | null;
-}
-
-export interface BotSettings {
-  id: string;
-  isActive: boolean;
-  watchedRoleId?: string;
-  liveRoleId?: string;
-  announceChannelId?: string;
-  checkIntervalSeconds?: number;
-}
-
-export interface InsertBotSettings {
-  isActive?: boolean;
-  watchedRoleId?: string;
-  liveRoleId?: string;
-  announceChannelId?: string;
-  checkIntervalSeconds?: number;
-}
-
-export interface Activity {
-  id: string;
-  streamerId: string;
-  type: string;
-  timestamp: Date;
-}
-
-export interface InsertActivity {
-  streamerId: string;
-  type: string;
-  timestamp?: Date;
-}
+// Export types for each table
+export type User = InferModel<typeof users>;
+export type Streamer = InferModel<typeof streamers>;
+export type BotSetting = InferModel<typeof botSettings>;
+export type Activity = InferModel<typeof activities>;
