@@ -1,71 +1,58 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import express from "express";
+import session from "express-session";
+import MemoryStore from "memorystore";
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import { Client, GatewayIntentBits } from "discord.js";
+import ws from "ws";
 
+// --- Express setup ---
 const app = express();
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+const MemoryStoreSession = MemoryStore(session);
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
+app.use(
+  session({
+    cookie: { maxAge: 86400000 },
+    store: new MemoryStoreSession({ checkPeriod: 86400000 }),
+    secret: "supersecret",
+    resave: false,
+    saveUninitialized: true
+  })
+);
 
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+app.use(passport.initialize());
+app.use(passport.session());
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
+passport.use(
+  new LocalStrategy((username, password, done) => {
+    // TODO: replace with real authentication
+    if (username === "admin" && password === "admin") return done(null, { id: 1, username });
+    return done(null, false);
+  })
+);
 
-      log(logLine);
-    }
-  });
+passport.serializeUser((user: any, done) => done(null, user.id));
+passport.deserializeUser((id: number, done) => done(null, { id, username: "admin" }));
 
-  next();
+app.get("/", (req, res) => res.send("RSRP Bot Backend Running"));
+
+app.listen(3000, () => console.log("Server running on port 3000"));
+
+// --- Discord bot setup ---
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+
+client.on("ready", () => {
+  console.log(`Logged in as ${client.user?.tag}!`);
 });
 
-(async () => {
-  const server = await registerRoutes(app);
+client.login(process.env.DISCORD_TOKEN);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
-})();
+// --- WebSocket example ---
+const wss = new ws.Server({ port: 8080 });
+wss.on("connection", socket => {
+  console.log("WebSocket client connected");
+  socket.on("message", message => console.log(`Received: ${message}`));
+  socket.send("Hello from backend!");
+});
