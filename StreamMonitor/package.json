@@ -1,27 +1,21 @@
 {
-  "name": "rsrpbot",
+  "name": "rest-express",
   "version": "1.0.0",
   "type": "module",
-  "license": "MIT",
   "scripts": {
-    "dev": "tsc --project server/tsconfig.server.json --watch",
-    "build": "tsc --project server/tsconfig.server.json",
-    "start": "node --loader ts-node/esm server/index.ts"
+    "dev": "NODE_ENV=development tsx server/index.ts",
+    "build": "tsc", 
+    "start": "NODE_ENV=production node server/index.js"
   },
   "dependencies": {
-    "discord.js": "^14.22.1",
-    "express": "^4.21.2",
-    "express-session": "^1.18.1",
-    "memorystore": "^1.6.7",
-    "passport": "^0.7.0",
-    "passport-local": "^1.0.0",
-    "ws": "^8.18.0",
-    "@neondatabase/serverless": "^0.10.4",
-    "drizzle-orm": "^0.39.1",
-    "drizzle-zod": "^0.7.0",
-    "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0",
-    "uuid": "^9.0.0"
+    "express": "^4.18.2",
+    "vite": "^5.1.0",
+    "discord.js": "^14.15.0",
+    "uuid": "^9.0.0",
+    "node-fetch": "^3.4.0",
+    "@neondatabase/serverless": "^1.2.0",
+    "drizzle-orm": "^0.29.0",
+    "neon-serverless": "^1.2.0"
   },
   "devDependencies": {
     "typescript": "5.6.3",
