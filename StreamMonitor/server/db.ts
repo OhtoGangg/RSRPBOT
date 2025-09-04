@@ -1,4 +1,4 @@
-import type { User, Streamer, BotSettings, Activity } from "../shared/schema.js";
+import { User, Streamer, botSettings, Activity } from "../shared/schema";
 import { createClient } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
@@ -11,6 +11,3 @@ const client = createClient({
 });
 
 export const db = drizzle(client);
-
-// Export types for convenience
-export type { User, Streamer, BotSettings, Activity };
