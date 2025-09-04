@@ -1,8 +1,10 @@
+// shared/schema.ts
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// --- Taulut ---
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -13,12 +15,12 @@ export const streamers = pgTable("streamers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   discordUserId: text("discord_user_id").notNull().unique(),
   discordUsername: text("discord_username").notNull(),
-  twitchUsername: text("twitch_username"),
+  twitchUsername: text("twitch_username").default(''),
   isLive: boolean("is_live").default(false),
-  currentStreamTitle: text("current_stream_title"),
+  currentStreamTitle: text("current_stream_title").default(''),
   currentViewers: integer("current_viewers").default(0),
-  lastChecked: timestamp("last_checked"),
-  announcementMessageId: text("announcement_message_id"),
+  lastChecked: timestamp("last_checked").default(sql`now()`),
+  announcementMessageId: text("announcement_message_id").default(''),
 });
 
 export const botSettings = pgTable("bot_settings", {
@@ -39,6 +41,7 @@ export const activities = pgTable("activities", {
   timestamp: timestamp("timestamp").default(sql`now()`),
 });
 
+// --- Insert skeemat Zodilla ---
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -58,11 +61,15 @@ export const insertActivitySchema = createInsertSchema(activities).omit({
   timestamp: true,
 });
 
+// --- TypeScript tyypit ---
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
 export type Streamer = typeof streamers.$inferSelect;
 export type InsertStreamer = z.infer<typeof insertStreamerSchema>;
+
 export type BotSettings = typeof botSettings.$inferSelect;
 export type InsertBotSettings = z.infer<typeof insertBotSettingsSchema>;
+
 export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
