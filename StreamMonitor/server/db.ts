@@ -1,20 +1,16 @@
-import { User, Streamer, BotSettings, Activity } from "../shared/schema";
+import type { User, Streamer, BotSettings, Activity } from "../shared/schema.js";
 import { createClient } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
-declare global {
-  namespace NodeJS {
-    interface ProcessEnv {
-      DATABASE_URL: string;
-    }
-  }
-}
-
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
+if (!process.env.DATABASE_URL) {
   throw new Error("Missing DATABASE_URL environment variable");
 }
 
-const client = createClient(databaseUrl);
+const client = createClient({
+  url: process.env.DATABASE_URL,
+});
 
 export const db = drizzle(client);
+
+// Export types for convenience
+export type { User, Streamer, BotSettings, Activity };
