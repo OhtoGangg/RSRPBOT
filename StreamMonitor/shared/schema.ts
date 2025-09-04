@@ -1,7 +1,7 @@
 import { pgTable, varchar, boolean, text, timestamp } from "drizzle-orm/pg-core";
 import { InferModel } from "drizzle-orm";
 
-// Define your tables
+// Tables
 export const users = pgTable("users", {
   id: varchar("id").primaryKey(),
   username: varchar("username"),
@@ -12,7 +12,7 @@ export const streamers = pgTable("streamers", {
   id: varchar("id").primaryKey(),
   discordUserId: varchar("discord_user_id"),
   discordUsername: varchar("discord_username"),
-  twitchUsername: varchar("twitch_username"),
+  twitchUsername: varchar("twitch_username").nullable(),
   isLive: boolean("is_live"),
   currentStreamTitle: text("current_stream_title").nullable(),
   currentViewers: text("current_viewers"),
@@ -31,8 +31,15 @@ export const activities = pgTable("activities", {
   timestamp: timestamp("timestamp"),
 });
 
-// Export types for each table
+// Types
 export type User = InferModel<typeof users>;
+export type InsertUser = InferModel<typeof users, "insert">;
+
 export type Streamer = InferModel<typeof streamers>;
-export type BotSetting = InferModel<typeof botSettings>;
+export type InsertStreamer = InferModel<typeof streamers, "insert">;
+
+export type BotSettings = InferModel<typeof botSettings>;
+export type InsertBotSettings = InferModel<typeof botSettings, "insert">;
+
 export type Activity = InferModel<typeof activities>;
+export type InsertActivity = InferModel<typeof activities, "insert">;
