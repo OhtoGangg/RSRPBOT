@@ -1,70 +1,54 @@
-// server/storage.ts
 import { db } from './db.js';
-import { streamers, bot_settings, activities, users } from './schema.js';
+import { v4 as uuidv4 } from 'uuid';
+import { users, streamers, bot_settings, activities } from './schema.js';
 import { eq } from 'drizzle-orm';
 
-// --- Users ---
-export async function getUserByUsername(username: string) {
-  return db.select().from(users).where(eq(users.username, username)).get();
-}
+export const storage = {
+  // Users
+  getUser: async (id: string) => {
+    return await db.select().from(users).where(eq(users.id, id)).get();
+  },
 
-export async function createUser(data: { username: string; password: string }) {
-  return db.insert(users).values(data).returning();
-}
+  createUser: async (username: string, password: string) => {
+    const id = uuidv4();
+    await db.insert(users).values({ id, username, password });
+    return { id, username };
+  },
 
-// --- Streamers ---
-export async function getStreamer(discordUserId: string) {
-  return db.select().from(streamers).where(eq(streamers.discordUserId, discordUserId)).get();
-}
+  // Streamers
+  getStreamer: async (discordUserId: string) => {
+    return await db.select().from(streamers).where(eq(streamers.discordUserId, discordUserId)).get();
+  },
 
-export async function getAllStreamers() {
-  return db.select().from(streamers).all();
-}
+  getAllStreamers: async () => {
+    return await db.select().from(streamers).all();
+  },
 
-export async function createStreamer(data: {
-  discordUserId: string;
-  discordUsername: string;
-  twitchUsername: string | null;
-  isLive: boolean;
-  currentStreamTitle: string | null;
-  currentViewers: number;
-  announcementMessageId: string | null;
-}) {
-  return db.insert(streamers).values(data).returning();
-}
+  createStreamer: async (data: any) => {
+    const id = uuidv4();
+    await db.insert(streamers).values({ ...data, id, lastChecked: new Date() });
+    return { ...data, id, lastChecked: new Date() };
+  },
 
-export async function updateStreamer(discordUserId: string, data: Partial<{
-  discordUsername: string;
-  twitchUsername: string | null;
-  isLive: boolean;
-  currentStreamTitle: string | null;
-  currentViewers: number;
-  announcementMessageId: string | null;
-}>) {
-  return db.update(streamers).set(data).where(eq(streamers.discordUserId, discordUserId));
-}
+  updateStreamer: async (discordUserId: string, data: Partial<any>) => {
+    await db.update(streamers).set({ ...data, lastChecked: new Date() }).where(eq(streamers.discordUserId, discordUserId));
+    return await db.select().from(streamers).where(eq(streamers.discordUserId, discordUserId)).get();
+  },
 
-// --- Bot Settings ---
-export async function getBotSettings() {
-  return db.select().from(bot_settings).get();
-}
+  // Bot settings
+  getBotSettings: async () => {
+    return await db.select().from(bot_settings).get();
+  },
 
-export async function updateBotSettings(data: Partial<{
-  watchedRoleId: string;
-  liveRoleId: string;
-  announceChannelId: string;
-  checkIntervalSeconds: number;
-  isActive: boolean;
-}>) {
-  return db.update(bot_settings).set(data);
-}
+  updateBotSettings: async (data: Partial<any>) => {
+    await db.update(bot_settings).set(data);
+    return await db.select().from(bot_settings).get();
+  },
 
-// --- Activities ---
-export async function createActivity(data: {
-  type: string;
-  streamerDiscordId: string;
-  streamerUsername: string;
-  description: string;
-}) {
-  return db.insert(activities).values(data);
-}
+  // Activities
+  createActivity: async (data: any) => {
+    const id = uuidv4();
+    await db.insert(activities).values({ ...data, id, timestamp: new Date() });
+    return { ...data, id, timestamp: new Date() };
+  },
+};
