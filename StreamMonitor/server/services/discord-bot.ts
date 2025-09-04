@@ -127,6 +127,102 @@ export class DiscordBot {
     return member.user.username;
   }
 
-  // handleStreamStart ja handleStreamEnd pysyvät samoina
-  // ...
+  private async handleStreamStart(member: GuildMember, streamer: Streamer, streamData: any, settings: InsertBotSettings) {
+    const liveRole = member.guild.roles.cache.find(role =>
+      role.name === 'LIVESSÄ' || role.id === settings.liveRoleId
+    );
+    if (liveRole) await member.roles.add(liveRole);
+
+    const announceChannel = member.guild.channels.cache.find(channel =>
+      channel.name === 'mainostus' || channel.id === settings.announceChannelId
+    ) as TextChannel;
+
+    let announcementMessageId = null;
+    if (announceChannel) {
+      const message = await announceChannel.send({
+        embeds: [{
+          title: '🔴 LIVE: RSRP Stream!',
+          description: `${streamer.discordUsername} aloitti livelähetyksen!`,
+          fields: [
+            { name: 'Streami', value: streamData.title, inline: false },
+            { name: 'Kategoria', value: streamData.game_name, inline: true },
+            { name: 'Katsojia', value: streamData.viewer_count.toString(), inline: true },
+          ],
+          color: 0x9146FF,
+          thumbnail: { url: streamData.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') },
+          url: `https://twitch.tv/${streamer.twitchUsername}`,
+          timestamp: new Date().toISOString(),
+        }],
+      });
+      announcementMessageId = message.id;
+    }
+
+    await storage.updateStreamer(member.id, {
+      isLive: true,
+      currentStreamTitle: streamData.title,
+      currentViewers: streamData.viewer_count,
+      announcementMessageId,
+      lastChecked: new Date(),
+    });
+
+    await storage.createActivity({
+      type: 'stream_start',
+      streamerDiscordId: member.id,
+      streamerUsername: streamer.discordUsername,
+      description: `aloitti RSRP striimin: ${streamData.title}`,
+    });
+
+    console.log(`Stream started: ${streamer.discordUsername}`);
+  }
+
+  private async handleStreamEnd(member: GuildMember, streamer: Streamer, settings: InsertBotSettings) {
+    const liveRole = member.guild.roles.cache.find(role =>
+      role.name === 'LIVESSÄ' || role.id === settings.liveRoleId
+    );
+    if (liveRole) await member.roles.remove(liveRole);
+
+    if (streamer.announcementMessageId) {
+      const announceChannel = member.guild.channels.cache.find(channel =>
+        channel.name === 'mainostus' || channel.id === settings.announceChannelId
+      ) as TextChannel;
+      if (announceChannel) {
+        try {
+          const message = await announceChannel.messages.fetch(streamer.announcementMessageId);
+          await message.delete();
+        } catch { /* ignore */ }
+      }
+    }
+
+    await storage.updateStreamer(member.id, {
+      isLive: false,
+      currentStreamTitle: null,
+      currentViewers: 0,
+      announcementMessageId: null,
+      lastChecked: new Date(),
+    });
+
+    await storage.createActivity({
+      type: 'stream_end',
+      streamerDiscordId: member.id,
+      streamerUsername: streamer.discordUsername,
+      description: 'lopetti striimin',
+    });
+
+    console.log(`Stream ended: ${streamer.discordUsername}`);
+  }
+
+  async getStatus() {
+    const settings = await storage.getBotSettings();
+    return {
+      isOnline: this.isInitialized && this.client.isReady(),
+      isActive: settings?.isActive || false,
+      guildCount: this.client.guilds.cache.size,
+      uptime: this.client.uptime,
+    };
+  }
+
+  async updateSettings(newSettings: InsertBotSettings) {
+    await storage.updateBotSettings(newSettings);
+    if (this.isInitialized) this.startStreamMonitoring();
+  }
 }
