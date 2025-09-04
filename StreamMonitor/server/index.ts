@@ -25,8 +25,10 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+// --- Passport authentication ---
 passport.use(
   new LocalStrategy((username, password, done) => {
+    // TODO: replace with real authentication
     if (username === "admin" && password === "admin") return done(null, { id: 1, username });
     return done(null, false);
   })
@@ -37,28 +39,37 @@ passport.deserializeUser((id: number, done) => done(null, { id, username: "admin
 
 app.get("/", (req, res) => res.send("RSRP Bot Backend Running"));
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Server running on port ${port}`));
+// --- Start Express server ---
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // --- Discord bot setup ---
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+
+const token = process.env.DISCORD_BOT_TOKEN;
+if (!token) {
+  console.error("❌ DISCORD_BOT_TOKEN environment variable not set!");
+  process.exit(1);
+}
 
 client.on("ready", () => {
   console.log(`Logged in as ${client.user?.tag}!`);
 });
 
-if (!process.env.DISCORD_TOKEN) {
-  console.error("Please set DISCORD_TOKEN in environment variables");
-} else {
-  client.login(process.env.DISCORD_TOKEN);
-}
+client.login(token);
 
-// --- WebSocket example ---
-const wssPort = Number(process.env.WS_PORT) || 8080;
-const wss = new ws.Server({ port: wssPort });
+// --- WebSocket setup ---
+const WSPORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 8080;
+const wss = new ws.Server({ port: WSPORT });
 
-wss.on("connection", socket => {
+wss.on("connection", (socket) => {
   console.log("WebSocket client connected");
-  socket.on("message", message => console.log(`Received: ${message}`));
+
+  socket.on("message", (message) => {
+    console.log(`Received: ${message}`);
+  });
+
   socket.send("Hello from backend!");
 });
+
+console.log(`WebSocket server running on port ${WSPORT}`);
