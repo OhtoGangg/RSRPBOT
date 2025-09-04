@@ -1,14 +1,12 @@
-import { Client, GatewayIntentBits, TextChannel, GuildMember } from 'discord.js';
+import { Client, GatewayIntentBits, TextChannel, Role, GuildMember } from 'discord.js';
 import { storage } from '../storage.js';
 import { TwitchAPI } from './twitch-api.js';
-import type { InsertBotSettings } from '@shared/schema.js';
 
 export class DiscordBot {
   private client: Client;
   private twitchAPI: TwitchAPI;
   private isInitialized = false;
   private checkInterval: NodeJS.Timeout | null = null;
-  private applicationId: string;
 
   constructor() {
     this.client = new Client({
@@ -19,7 +17,6 @@ export class DiscordBot {
       ],
     });
 
-    this.applicationId = process.env.DISCORD_APPLICATION_ID || '';
     this.twitchAPI = new TwitchAPI();
     this.setupEventHandlers();
   }
@@ -37,11 +34,8 @@ export class DiscordBot {
   }
 
   async initialize(): Promise<void> {
-    const token = process.env.DISCORD_BOT_TOKEN;
-    if (!token) {
-      throw new Error('DISCORD_BOT_TOKEN not found in environment variables');
-    }
-
+    const token = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
+    if (!token) throw new Error('DISCORD_BOT_TOKEN missing');
     await this.client.login(token);
   }
 
@@ -70,16 +64,10 @@ export class DiscordBot {
       const watchedRole = guild.roles.cache.find(role =>
         role.name === 'STRIIMAAJA' || role.id === settings.watchedRoleId
       );
-
-      if (!watchedRole) {
-        console.error('STRIIMAAJA role not found');
-        return;
-      }
+      if (!watchedRole) return;
 
       await guild.members.fetch();
-      const membersWithRole = watchedRole.members;
-
-      membersWithRole.forEach(async (member) => {
+      watchedRole.members.forEach(async (member) => {
         await this.checkMemberStream(member, settings);
       });
     } catch (error) {
@@ -91,12 +79,11 @@ export class DiscordBot {
     try {
       let streamer = await storage.getStreamer(member.id);
       if (!streamer) {
-        const twitchUsername = await this.findTwitchUsername(member);
-
+        const twitchUsername = member.user.username; // fallback
         streamer = await storage.createStreamer({
           discordUserId: member.id,
           discordUsername: member.displayName || member.user.username,
-          twitchUsername: twitchUsername,
+          twitchUsername,
           isLive: false,
           currentStreamTitle: null,
           currentViewers: 0,
@@ -126,29 +113,15 @@ export class DiscordBot {
     }
   }
 
-  private async findTwitchUsername(member: GuildMember): Promise<string | null> {
-    for (const activity of member.presence?.activities || []) {
-      if (activity.name === 'Twitch' && activity.state) {
-        return activity.state.replace('twitch.tv/', '');
-      }
-      if (activity.url && activity.url.includes('twitch.tv/')) {
-        const match = activity.url.match(/twitch\.tv\/([^\/]+)/);
-        return match ? match[1] : null;
-      }
-    }
-    return member.user.username;
-  }
-
   private async handleStreamStart(member: GuildMember, streamer: any, streamData: any, settings: any) {
     try {
       const liveRole = member.guild.roles.cache.find(role =>
         role.name === 'LIVESSÄ' || role.id === settings.liveRoleId
       );
-
       if (liveRole) await member.roles.add(liveRole);
 
       const announceChannel = member.guild.channels.cache.find(channel =>
-        channel.name === 'mainostus' || channel.id === settings.announceChannelId
+        (channel.name === 'mainostus' || channel.id === settings.announceChannelId)
       ) as TextChannel;
 
       let announcementMessageId = null;
@@ -156,16 +129,8 @@ export class DiscordBot {
         const message = await announceChannel.send({
           embeds: [{
             title: '🔴 LIVE: RSRP Stream!',
-            description: `${streamer.discordUsername} aloitti livelähetyksen!`,
-            fields: [
-              { name: 'Streami', value: streamData.title, inline: false },
-              { name: 'Kategoria', value: streamData.game_name, inline: true },
-              { name: 'Katsojia', value: streamData.viewer_count.toString(), inline: true },
-            ],
-            color: 0x9146FF,
-            thumbnail: { url: streamData.thumbnail_url?.replace('{width}', '320').replace('{height}', '180') },
+            description: `${streamer.discordUsername} aloitti striimin!`,
             url: `https://twitch.tv/${streamer.twitchUsername}`,
-            timestamp: new Date().toISOString(),
           }],
         });
         announcementMessageId = message.id;
@@ -177,17 +142,8 @@ export class DiscordBot {
         currentViewers: streamData.viewer_count,
         announcementMessageId,
       });
-
-      await storage.createActivity({
-        type: 'stream_start',
-        streamerDiscordId: member.id,
-        streamerUsername: streamer.discordUsername,
-        description: `aloitti RSRP striimin: ${streamData.title}`,
-      });
-
-      console.log(`Stream started: ${streamer.discordUsername}`);
     } catch (error) {
-      console.error(`Error handling stream start for ${streamer.discordUsername}:`, error);
+      console.error(`Error starting stream for ${streamer.discordUsername}:`, error);
     }
   }
 
@@ -196,7 +152,6 @@ export class DiscordBot {
       const liveRole = member.guild.roles.cache.find(role =>
         role.name === 'LIVESSÄ' || role.id === settings.liveRoleId
       );
-
       if (liveRole) await member.roles.remove(liveRole);
 
       if (streamer.announcementMessageId) {
@@ -218,17 +173,8 @@ export class DiscordBot {
         currentViewers: 0,
         announcementMessageId: null,
       });
-
-      await storage.createActivity({
-        type: 'stream_end',
-        streamerDiscordId: member.id,
-        streamerUsername: streamer.discordUsername,
-        description: 'lopetti striimin',
-      });
-
-      console.log(`Stream ended: ${streamer.discordUsername}`);
     } catch (error) {
-      console.error(`Error handling stream end for ${streamer.discordUsername}:`, error);
+      console.error(`Error ending stream for ${streamer.discordUsername}:`, error);
     }
   }
 
@@ -240,10 +186,5 @@ export class DiscordBot {
       guildCount: this.client.guilds.cache.size,
       uptime: this.client.uptime,
     };
-  }
-
-  async updateSettings(newSettings: InsertBotSettings) {
-    await storage.updateBotSettings(newSettings);
-    if (this.isInitialized) this.startStreamMonitoring();
   }
 }
