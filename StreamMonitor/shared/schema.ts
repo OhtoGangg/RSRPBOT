@@ -1,31 +1,31 @@
-import { pgTable, varchar, boolean, timestamp } from 'drizzle-orm/pg-core';
+// shared/schema.ts
+import { pgTable, serial, text, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
 
-export const usersTable = pgTable('users', {
-  id: varchar('id').primaryKey(),
-  username: varchar('username').notNull(),
-  password: varchar('password').notNull(),
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey(),
+  username: varchar("username"),
+  password: varchar("password"),
 });
 
-export const streamersTable = pgTable('streamers', {
-  id: varchar('id').primaryKey(),
-  discordUserId: varchar('discordUserId').notNull(),
-  discordUsername: varchar('discordUsername').notNull(),
-  twitchUsername: varchar('twitchUsername').notNull(),
-  isLive: boolean('isLive').notNull(),
-  currentStreamTitle: varchar('currentStreamTitle'),
-  currentViewers: varchar('currentViewers').notNull(),
-  announcementMessageId: varchar('announcementMessageId'),
-  lastChecked: timestamp('lastChecked').notNull(),
+export const streamers = pgTable("streamers", {
+  id: varchar("id").primaryKey(),
+  discordUserId: varchar("discord_user_id"),
+  discordUsername: varchar("discord_username"),
+  twitchUsername: varchar("twitch_username"),
+  isLive: boolean("is_live"),
+  currentStreamTitle: text("current_stream_title").nullable(),
+  currentViewers: text("current_viewers"),
+  announcementMessageId: varchar("announcement_message_id").nullable(),
 });
 
-export const botSettingsTable = pgTable('bot_settings', {
-  id: varchar('id').primaryKey(),
-  isActive: boolean('isActive').notNull(),
-  checkIntervalSeconds: varchar('checkIntervalSeconds').notNull(),
+export const botSettings = pgTable("bot_settings", {
+  id: varchar("id").primaryKey(),
+  isActive: boolean("is_active"),
 });
 
-export const activitiesTable = pgTable('activities', {
-  id: varchar('id').primaryKey(),
-  timestamp: timestamp('timestamp').notNull(),
-  description: varchar('description').notNull(),
+export const activities = pgTable("activities", {
+  id: varchar("id").primaryKey(),
+  streamerId: varchar("streamer_id"),
+  type: varchar("type"),
+  timestamp: timestamp("timestamp"),
 });
