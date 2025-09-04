@@ -1,15 +1,19 @@
-// server/storage.ts
+import { type InsertBotSettings, type Streamer, type InsertStreamer, type Activity, type InsertActivity } from '../shared/schema.js';
 import { randomUUID } from 'crypto';
-import { type InsertBotSettings, type BotSettings, type InsertActivity, type Activity, type InsertStreamer, type Streamer } from '../shared/schema.js';
 
-export class MemStorage {
-  private streamers: Map<string, Streamer> = new Map();
-  private botSettings: BotSettings | undefined;
+interface StorageData {
+  botSettings: InsertBotSettings;
+  streamers: Streamer[];
+  activities: Activity[];
+}
+
+class MemStorage {
+  private botSettings: InsertBotSettings;
+  private streamers: Streamer[] = [];
   private activities: Activity[] = [];
 
   constructor() {
     this.botSettings = {
-      id: randomUUID(),
       watchedRoleId: process.env.WATCHED_ROLE_ID || 'STRIIMAAJA_ROLE_ID',
       liveRoleId: process.env.LIVE_ROLE_ID || 'LIVESSÄ_ROLE_ID',
       announceChannelId: process.env.ANNOUNCE_CHANNEL_ID || 'MAINOSTUS_CHANNEL_ID',
@@ -18,44 +22,32 @@ export class MemStorage {
     };
   }
 
-  // Bot settings
-  async getBotSettings(): Promise<BotSettings> {
-    return this.botSettings!;
-  }
-
-  async updateBotSettings(settings: InsertBotSettings): Promise<BotSettings> {
-    this.botSettings = { ...this.botSettings!, ...settings };
+  async getBotSettings(): Promise<InsertBotSettings> {
     return this.botSettings;
   }
 
-  // Streamers
+  async updateBotSettings(settings: InsertBotSettings) {
+    this.botSettings = { ...this.botSettings, ...settings };
+  }
+
   async getStreamer(discordUserId: string): Promise<Streamer | undefined> {
-    return this.streamers.get(discordUserId);
+    return this.streamers.find(s => s.discordUserId === discordUserId);
   }
 
   async createStreamer(streamer: InsertStreamer): Promise<Streamer> {
-    const newStreamer: Streamer = {
-      ...streamer,
-      id: randomUUID(),
-      isLive: streamer.isLive ?? false,
-      currentViewers: streamer.currentViewers ?? 0,
-      currentStreamTitle: streamer.currentStreamTitle ?? null,
-      announcementMessageId: streamer.announcementMessageId ?? null,
-      lastChecked: new Date(),
-    };
-    this.streamers.set(streamer.discordUserId, newStreamer);
+    const newStreamer: Streamer = { id: randomUUID(), ...streamer, lastChecked: new Date() };
+    this.streamers.push(newStreamer);
     return newStreamer;
   }
 
   async updateStreamer(discordUserId: string, updates: Partial<Omit<Streamer, 'id' | 'discordUserId'>>): Promise<Streamer | undefined> {
-    const existing = this.streamers.get(discordUserId);
-    if (!existing) return undefined;
-    const updated = { ...existing, ...updates, lastChecked: new Date() };
-    this.streamers.set(discordUserId, updated);
-    return updated;
+    const streamer = await this.getStreamer(discordUserId);
+    if (!streamer) return undefined;
+    Object.assign(streamer, updates);
+    streamer.lastChecked = new Date();
+    return streamer;
   }
 
-  // Activities
   async createActivity(activity: InsertActivity): Promise<Activity> {
     const newActivity: Activity = { ...activity, id: randomUUID(), timestamp: new Date() };
     this.activities.push(newActivity);
