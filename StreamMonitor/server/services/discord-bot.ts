@@ -2,26 +2,30 @@
 import { Client, GatewayIntentBits, TextChannel, GuildMember } from 'discord.js';
 import { storage } from '../storage.js';
 import { TwitchAPI } from './twitch-api.js';
-import { Streamer, InsertBotSettings } from '../shared/schema.js';
-import { randomUUID } from 'crypto';
+
+type InsertBotSettings = {
+  watchedRoleId: string;
+  liveRoleId: string;
+  announceChannelId: string;
+  checkIntervalSeconds?: number;
+  isActive?: boolean;
+};
 
 export class DiscordBot {
   private client: Client;
   private twitchAPI: TwitchAPI;
   private isInitialized = false;
   private checkInterval: NodeJS.Timeout | null = null;
-  private applicationId: string;
 
   constructor() {
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildPresences,
         GatewayIntentBits.GuildMessages,
       ],
     });
-
-    this.applicationId = process.env.DISCORD_APPLICATION_ID || '';
     this.twitchAPI = new TwitchAPI();
     this.setupEventHandlers();
   }
@@ -64,9 +68,7 @@ export class DiscordBot {
     const guild = this.client.guilds.cache.first();
     if (!guild) return;
 
-    const watchedRole = guild.roles.cache.find(role =>
-      role.name === 'STRIIMAAJA' || role.id === settings.watchedRoleId
-    );
+    const watchedRole = guild.roles.cache.get(settings.watchedRoleId);
     if (!watchedRole) return;
 
     await guild.members.fetch();
@@ -77,17 +79,13 @@ export class DiscordBot {
 
   private async checkMemberStream(member: GuildMember, settings: InsertBotSettings) {
     try {
-      // Varmistetaan STRIIMAAJA-rooli
-      const watchedRole = member.roles.cache.find(role =>
-        role.name === 'STRIIMAAJA' || role.id === settings.watchedRoleId
-      );
-      if (!watchedRole) return;
+      const hasWatchedRole = member.roles.cache.has(settings.watchedRoleId);
+      if (!hasWatchedRole) return;
 
-      let streamer: Streamer | null = await storage.getStreamer(member.id);
+      let streamer = await storage.getStreamer(member.id);
       if (!streamer) {
         const twitchUsername = await this.findTwitchUsername(member);
         streamer = await storage.createStreamer({
-          id: randomUUID(),
           discordUserId: member.id,
           discordUsername: member.displayName || member.user.username,
           twitchUsername: twitchUsername || null,
@@ -95,14 +93,14 @@ export class DiscordBot {
           currentStreamTitle: null,
           currentViewers: 0,
           announcementMessageId: null,
-          lastChecked: new Date(),
         });
       }
 
       if (!streamer.twitchUsername) return;
 
       const streamData = await this.twitchAPI.getStreamData(streamer.twitchUsername);
-      const isQualifyingStream = streamData &&
+      const isQualifyingStream =
+        streamData &&
         streamData.game_name === 'Grand Theft Auto V' &&
         streamData.title.toLowerCase().includes('#rsrp');
 
@@ -114,7 +112,6 @@ export class DiscordBot {
         await storage.updateStreamer(member.id, {
           currentStreamTitle: streamData.title,
           currentViewers: streamData.viewer_count,
-          lastChecked: new Date(),
         });
       }
     } catch (error) {
@@ -133,17 +130,13 @@ export class DiscordBot {
     return member.user.username;
   }
 
-  private async handleStreamStart(member: GuildMember, streamer: Streamer, streamData: any, settings: InsertBotSettings) {
-    const liveRole = member.guild.roles.cache.find(role =>
-      role.name === 'LIVESSÄ' || role.id === settings.liveRoleId
-    );
+  private async handleStreamStart(member: GuildMember, streamer: any, streamData: any, settings: InsertBotSettings) {
+    const liveRole = member.guild.roles.cache.get(settings.liveRoleId);
     if (liveRole) await member.roles.add(liveRole);
 
-    const announceChannel = member.guild.channels.cache.find(channel =>
-      channel.name === 'mainostus' || channel.id === settings.announceChannelId
-    ) as TextChannel;
+    const announceChannel = member.guild.channels.cache.get(settings.announceChannelId) as TextChannel;
+    let announcementMessageId = null;
 
-    let announcementMessageId: string | null = null;
     if (announceChannel) {
       const message = await announceChannel.send({
         embeds: [{
@@ -168,7 +161,6 @@ export class DiscordBot {
       currentStreamTitle: streamData.title,
       currentViewers: streamData.viewer_count,
       announcementMessageId,
-      lastChecked: new Date(),
     });
 
     await storage.createActivity({
@@ -176,22 +168,17 @@ export class DiscordBot {
       streamerDiscordId: member.id,
       streamerUsername: streamer.discordUsername,
       description: `aloitti RSRP striimin: ${streamData.title}`,
-      timestamp: new Date(),
     });
 
     console.log(`Stream started: ${streamer.discordUsername}`);
   }
 
-  private async handleStreamEnd(member: GuildMember, streamer: Streamer, settings: InsertBotSettings) {
-    const liveRole = member.guild.roles.cache.find(role =>
-      role.name === 'LIVESSÄ' || role.id === settings.liveRoleId
-    );
+  private async handleStreamEnd(member: GuildMember, streamer: any, settings: InsertBotSettings) {
+    const liveRole = member.guild.roles.cache.get(settings.liveRoleId);
     if (liveRole) await member.roles.remove(liveRole);
 
     if (streamer.announcementMessageId) {
-      const announceChannel = member.guild.channels.cache.find(channel =>
-        channel.name === 'mainostus' || channel.id === settings.announceChannelId
-      ) as TextChannel;
+      const announceChannel = member.guild.channels.cache.get(settings.announceChannelId) as TextChannel;
       if (announceChannel) {
         try {
           const message = await announceChannel.messages.fetch(streamer.announcementMessageId);
@@ -205,7 +192,6 @@ export class DiscordBot {
       currentStreamTitle: null,
       currentViewers: 0,
       announcementMessageId: null,
-      lastChecked: new Date(),
     });
 
     await storage.createActivity({
@@ -213,7 +199,6 @@ export class DiscordBot {
       streamerDiscordId: member.id,
       streamerUsername: streamer.discordUsername,
       description: 'lopetti striimin',
-      timestamp: new Date(),
     });
 
     console.log(`Stream ended: ${streamer.discordUsername}`);
