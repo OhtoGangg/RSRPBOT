@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, TextChannel, Role, GuildMember } from 'discord.js';
-import { storage } from '../storage';
-import { TwitchAPI } from './twitch-api';
+import { storage } from '../storage.js';
+import { TwitchAPI } from './twitch-api.js';
 import { type InsertBotSettings } from '@shared/schema';
 
 export class DiscordBot {
