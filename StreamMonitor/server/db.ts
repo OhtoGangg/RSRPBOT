@@ -1,4 +1,4 @@
-import { User, Streamer, BotSetting, Activity } from "../shared/schema";
+import { User, Streamer, BotSettings, Activity } from "../shared/schema";
 import { createClient } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
