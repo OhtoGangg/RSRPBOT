@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
     "outDir": "../dist",
-    "rootDir": "../",        
+    "rootDir": "../",
     "module": "ESNext",
     "target": "ES2022",
     "moduleResolution": "nodenext",
     "esModuleInterop": true,
     "strict": true,
     "allowJs": true,
+    "skipLibCheck": true,
     "baseUrl": "../",
     "paths": {
       "@shared/*": ["shared/*"]
