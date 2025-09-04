@@ -1,9 +1,5 @@
-// server/db.ts
 import { createClient } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
-const client = createClient({
-  connectionString: process.env.DATABASE_URL,
-});
-
+const client = createClient({ url: process.env.DATABASE_URL! });
 export const db = drizzle(client);
