@@ -7,16 +7,15 @@
     "build": "tsc",
     "start": "NODE_ENV=production node dist/server/index.js"
   },
-  "dependencies": {
-    "express": "^4.18.2",
-    "vite": "^5.1.0",
-    "discord.js": "^14.15.0",
-    "uuid": "^9.0.0",
-    "node-fetch": "^3.4.0",
-    "@neondatabase/serverless": "^1.0.1",
-    "drizzle-orm": "^0.29.0",
-    "neon-serverless": "^1.2.0"
-  },
+ "dependencies": {
+  "express": "^4.18.2",
+  "vite": "^5.1.0",
+  "discord.js": "^14.15.0",
+  "uuid": "^9.0.0",
+  "node-fetch": "^3.4.0",
+  "@neondatabase/serverless": "^1.0.1",
+  "drizzle-orm": "^0.29.0"
+},
   "devDependencies": {
     "typescript": "^5.2.2",
     "tsx": "^3.12.7",
