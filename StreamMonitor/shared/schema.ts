@@ -1,28 +1,29 @@
-// shared/schema.ts
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// --- Taulut ---
+// --- Users ---
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
 });
 
+// --- Streamers ---
 export const streamers = pgTable("streamers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   discordUserId: text("discord_user_id").notNull().unique(),
   discordUsername: text("discord_username").notNull(),
-  twitchUsername: text("twitch_username").default(''),
+  twitchUsername: text("twitch_username"),
   isLive: boolean("is_live").default(false),
-  currentStreamTitle: text("current_stream_title").default(''),
+  currentStreamTitle: text("current_stream_title"),
   currentViewers: integer("current_viewers").default(0),
-  lastChecked: timestamp("last_checked").default(sql`now()`),
-  announcementMessageId: text("announcement_message_id").default(''),
+  lastChecked: timestamp("last_checked"),
+  announcementMessageId: text("announcement_message_id"),
 });
 
+// --- Bot Settings ---
 export const botSettings = pgTable("bot_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   watchedRoleId: text("watched_role_id").notNull(),
@@ -32,6 +33,7 @@ export const botSettings = pgTable("bot_settings", {
   isActive: boolean("is_active").default(true),
 });
 
+// --- Activities ---
 export const activities = pgTable("activities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   type: text("type").notNull(), // "stream_start", "stream_end", "role_added", "role_removed", "announcement"
@@ -41,7 +43,7 @@ export const activities = pgTable("activities", {
   timestamp: timestamp("timestamp").default(sql`now()`),
 });
 
-// --- Insert skeemat Zodilla ---
+// --- Zod schemas for inserts ---
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -61,7 +63,7 @@ export const insertActivitySchema = createInsertSchema(activities).omit({
   timestamp: true,
 });
 
-// --- TypeScript tyypit ---
+// --- Types ---
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
