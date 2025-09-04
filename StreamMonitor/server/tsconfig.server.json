@@ -1,13 +1,17 @@
 {
   "compilerOptions": {
     "outDir": "../dist",
-    "rootDir": ".",
+    "rootDir": "../",        
     "module": "ESNext",
     "target": "ES2022",
-    "moduleResolution": "Node",
+    "moduleResolution": "nodenext",
     "esModuleInterop": true,
     "strict": true,
-    "allowJs": true
+    "allowJs": true,
+    "baseUrl": "../",
+    "paths": {
+      "@shared/*": ["shared/*"]
+    }
   },
-  "include": ["**/*.ts"]
+  "include": ["server/**/*", "shared/**/*"]
 }
