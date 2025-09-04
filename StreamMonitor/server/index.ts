@@ -1,26 +1,33 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
+import { storage } from "./storage.js";
 
 const app = express();
+
+// JSON + URL encoding middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.use((req, res, next) => {
+// API request logging
+app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
-  let capturedJsonResponse: Record<string, any> | undefined;
+  const path = req.path;
+  let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
-  const originalJson = res.json;
-  res.json = function (body, ...args) {
-    capturedJsonResponse = body;
-    return originalJson.apply(res, [body, ...args]);
+  const originalResJson = res.json;
+  res.json = function (bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
   };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (req.path.startsWith("/api")) {
-      let logLine = `${req.method} ${req.path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
       if (logLine.length > 80) logLine = logLine.slice(0, 79) + "…";
       log(logLine);
     }
@@ -29,17 +36,28 @@ app.use((req, res, next) => {
   next();
 });
 
+// register routes
 (async () => {
-  const server = await registerRoutes(app);
+  const server = await registerRoutes(app, storage);
 
+  // global error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    res.status(status).json({ message: err.message || "Internal Server Error" });
-    throw err;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+    console.error(err);
   });
 
-  if (app.get("env") === "development") await setupVite(app, server);
-  else serveStatic(app);
+  // setup Vite only in development
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
 
+  // serve on environment port (default 5000)
   const port = parseInt(process.env.PORT ?? "5000", 10);
-  server.listen({ port
+  server.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
+    log(`Server running on port ${port}`);
+  });
+})();
