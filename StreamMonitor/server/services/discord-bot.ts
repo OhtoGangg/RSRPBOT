@@ -3,7 +3,7 @@ import { Client, GatewayIntentBits, TextChannel, GuildMember } from 'discord.js'
 import { storage } from '../storage.js';
 import { TwitchAPI } from './twitch-api.js';
 import { Streamer, InsertBotSettings } from '../shared/schema.js';
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from 'crypto';
 
 export class DiscordBot {
   private client: Client;
@@ -77,8 +77,13 @@ export class DiscordBot {
 
   private async checkMemberStream(member: GuildMember, settings: InsertBotSettings) {
     try {
-      let streamer: Streamer | null = await storage.getStreamer(member.id);
+      // Varmistetaan STRIIMAAJA-rooli
+      const watchedRole = member.roles.cache.find(role =>
+        role.name === 'STRIIMAAJA' || role.id === settings.watchedRoleId
+      );
+      if (!watchedRole) return;
 
+      let streamer: Streamer | null = await storage.getStreamer(member.id);
       if (!streamer) {
         const twitchUsername = await this.findTwitchUsername(member);
         streamer = await storage.createStreamer({
@@ -99,7 +104,7 @@ export class DiscordBot {
       const streamData = await this.twitchAPI.getStreamData(streamer.twitchUsername);
       const isQualifyingStream = streamData &&
         streamData.game_name === 'Grand Theft Auto V' &&
-        streamData.title.toLowerCase().includes('rsrp');
+        streamData.title.toLowerCase().includes('#rsrp');
 
       if (isQualifyingStream && !streamer.isLive) {
         await this.handleStreamStart(member, streamer, streamData, settings);
@@ -109,6 +114,7 @@ export class DiscordBot {
         await storage.updateStreamer(member.id, {
           currentStreamTitle: streamData.title,
           currentViewers: streamData.viewer_count,
+          lastChecked: new Date(),
         });
       }
     } catch (error) {
@@ -137,7 +143,7 @@ export class DiscordBot {
       channel.name === 'mainostus' || channel.id === settings.announceChannelId
     ) as TextChannel;
 
-    let announcementMessageId = null;
+    let announcementMessageId: string | null = null;
     if (announceChannel) {
       const message = await announceChannel.send({
         embeds: [{
@@ -170,6 +176,7 @@ export class DiscordBot {
       streamerDiscordId: member.id,
       streamerUsername: streamer.discordUsername,
       description: `aloitti RSRP striimin: ${streamData.title}`,
+      timestamp: new Date(),
     });
 
     console.log(`Stream started: ${streamer.discordUsername}`);
@@ -206,6 +213,7 @@ export class DiscordBot {
       streamerDiscordId: member.id,
       streamerUsername: streamer.discordUsername,
       description: 'lopetti striimin',
+      timestamp: new Date(),
     });
 
     console.log(`Stream ended: ${streamer.discordUsername}`);
