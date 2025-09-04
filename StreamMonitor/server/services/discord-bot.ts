@@ -1,7 +1,15 @@
+// server/services/discord-bot.ts
 import { Client, GatewayIntentBits, TextChannel, Role, GuildMember } from 'discord.js';
 import { storage } from '../storage.js';
 import { TwitchAPI } from './twitch-api.js';
-import { type InsertBotSettings } from '../shared/schema.js';
+
+type InsertBotSettings = {
+  watchedRoleId: string;
+  liveRoleId: string;
+  announceChannelId: string;
+  checkIntervalSeconds?: number;
+  isActive?: boolean;
+};
 
 export class DiscordBot {
   private client: Client;
@@ -19,7 +27,7 @@ export class DiscordBot {
       ],
     });
 
-    this.applicationId = process.env.DISCORD_APPLICATION_ID || process.env.DISCORD_APP_ID || '';
+    this.applicationId = process.env.DISCORD_APPLICATION_ID || '';
     this.twitchAPI = new TwitchAPI();
     this.setupEventHandlers();
   }
@@ -37,7 +45,7 @@ export class DiscordBot {
   }
 
   async initialize(): Promise<void> {
-    const token = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
+    const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) throw new Error('DISCORD_BOT_TOKEN not found in environment variables');
     await this.client.login(token);
   }
@@ -73,7 +81,7 @@ export class DiscordBot {
     });
   }
 
-  private async checkMemberStream(member: GuildMember, settings: any) {
+  private async checkMemberStream(member: GuildMember, settings: InsertBotSettings) {
     try {
       let streamer = await storage.getStreamer(member.id);
       if (!streamer) {
@@ -81,7 +89,7 @@ export class DiscordBot {
         streamer = await storage.createStreamer({
           discordUserId: member.id,
           discordUsername: member.displayName || member.user.username,
-          twitchUsername: twitchUsername,
+          twitchUsername: twitchUsername || null,
           isLive: false,
           currentStreamTitle: null,
           currentViewers: 0,
@@ -122,7 +130,7 @@ export class DiscordBot {
     return member.user.username;
   }
 
-  private async handleStreamStart(member: GuildMember, streamer: any, streamData: any, settings: any) {
+  private async handleStreamStart(member: GuildMember, streamer: any, streamData: any, settings: InsertBotSettings) {
     const liveRole = member.guild.roles.cache.find(role =>
       role.name === 'LIVESSÄ' || role.id === settings.liveRoleId
     );
@@ -169,7 +177,7 @@ export class DiscordBot {
     console.log(`Stream started: ${streamer.discordUsername}`);
   }
 
-  private async handleStreamEnd(member: GuildMember, streamer: any, settings: any) {
+  private async handleStreamEnd(member: GuildMember, streamer: any, settings: InsertBotSettings) {
     const liveRole = member.guild.roles.cache.find(role =>
       role.name === 'LIVESSÄ' || role.id === settings.liveRoleId
     );
